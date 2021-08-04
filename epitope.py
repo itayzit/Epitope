@@ -13,17 +13,25 @@ def split_to_windows(protein):
     return None
 
 
-def _get_average_from_mapping(mapping):
-    return sum(list(mapping.mapping.values())) / len(mapping.mapping)
-
-
 def compute_feature_matrix(protein):
-    volume_mapping = aaindex.get_aa2volume(default=_get_average_from_mapping(aaindex.get_aa2volume())) # use the average as default
-    hydrophobicity_mapping = aaindex.get_aa2mj(default=_get_average_from_mapping(aaindex.get_aa2mj())) # use the average as default
-    polarity_mapping = aaindex.get_aaindex_file('GRAR740102', default=_get_average_from_mapping(aaindex.get_aaindex_file('GRAR740102'))) # use the average as default
+    volume_mapping = compute_mapping_according_to_dict(aaindex.get_aa2volume().mapping, protein)
+    hydrophobicity_mapping = compute_mapping_according_to_dict(aaindex.get_aa2mj().mapping, protein)
+    polarity_mapping = compute_mapping_according_to_dict(aaindex.get_aaindex_file('GRAR740102').mapping, protein)
     # TODO: compute rsa
     # TODO: compute ss
-    return pd.DataFrame(data={"volume": volume_mapping(protein), "hydrophobicity": hydrophobicity_mapping(protein), "polarity": polarity_mapping(protein), "type": list(protein)})
+    return pd.DataFrame(data={"volume": volume_mapping, "hydrophobicity": hydrophobicity_mapping, "polarity": polarity_mapping, "type": list(protein)})
+
+
+def compute_mapping_according_to_dict(mapping, protein):
+    vector = []
+    mapping['B'] = (mapping['D'] + mapping['N']) / 2
+    mapping['J'] = (mapping['I'] + mapping['L']) / 2
+    mapping['X'] = sum(list(mapping.values())) / len(mapping)
+    mapping['Z'] = (mapping['E'] + mapping['Q']) / 2
+    for amino_acid in protein:
+        vector.append(mapping[amino_acid])
+    return vector
+
 
 
 def main():

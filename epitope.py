@@ -7,6 +7,7 @@ from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
 WINDOW_SIZE = 9
 
+AMINO_ACIDS = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
 # https://www.sciencedirect.com/science/article/abs/pii/0022283676901911
 RSA_DICT = {'A': 115, 'D': 150, 'C': 135, 'E': 190, 'F': 210, 'G': 75, 'H': 195, 'I': 175, 'K': 200, 'L': 170, 'M': 185, 'N': 160, 'P': 145, 'Q': 180, 'R': 225, 'S': 115, 'T': 140, 'V': 155, 'W': 255, 'Y': 230}
 
@@ -20,8 +21,27 @@ def compute_feature_matrix(protein):
     volume_mapping = compute_mapping_according_to_dict(aaindex.get_aa2volume().mapping, protein)
     hydrophobicity_mapping = compute_mapping_according_to_dict(aaindex.get_aa2mj().mapping, protein)
     polarity_mapping = compute_mapping_according_to_dict(aaindex.get_aaindex_file('GRAR740102').mapping, protein)
+    rsa_mapping =  compute_mapping_according_to_dict(RSA_DICT, protein)
     # TODO: compute ss
-    return pd.DataFrame(data={"volume": volume_mapping, "hydrophobicity": hydrophobicity_mapping, "polarity": polarity_mapping, "type": list(protein)})
+    df_type = df_type_of_amino_acid(protein)
+    df = pd.DataFrame(data={"volume": volume_mapping, "hydrophobicity": hydrophobicity_mapping, "polarity": polarity_mapping, "RSA": rsa_mapping})
+    df = df.join(df_type)
+    return df
+
+def df_type_of_amino_acid(protein):
+    df = pd.DataFrame(np.zeros((len(protein), len(AMINO_ACIDS))), columns=AMINO_ACIDS)
+    for i, amino_acid in enumerate(protein):
+        if amino_acid == 'B':
+            df[i] = [1 if (acid == 'D' or acid == 'N') else 0 for acid in AMINO_ACIDS]
+        elif amino_acid == 'J':
+            df[i] = [1 if (acid == 'J' or acid == 'L') else 0 for acid in AMINO_ACIDS]
+        elif amino_acid == 'X':
+            df[i] = [1 for _ in AMINO_ACIDS]
+        elif amino_acid == 'Z':
+            df[i] = [1 if (acid == 'E' or acid == 'Q') else 0 for acid in AMINO_ACIDS]
+        else:
+            df[i] = [1 if amino_acid == acid else 0 for acid in AMINO_ACIDS]
+    return df
 
 
 def compute_mapping_according_to_dict(mapping, protein):

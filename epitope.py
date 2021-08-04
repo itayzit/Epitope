@@ -22,9 +22,9 @@ def compute_feature_matrix(protein):
     hydrophobicity_mapping = compute_mapping_according_to_dict(aaindex.get_aa2mj().mapping, protein)
     polarity_mapping = compute_mapping_according_to_dict(aaindex.get_aaindex_file('GRAR740102').mapping, protein)
     rsa_mapping =  compute_mapping_according_to_dict(RSA_DICT, protein)
-    # TODO: compute ss
     df_type = df_type_of_amino_acid(protein)
     df = pd.DataFrame(data={"volume": volume_mapping, "hydrophobicity": hydrophobicity_mapping, "polarity": polarity_mapping, "RSA": rsa_mapping})
+    df = df.join(calculate_ss(protein, 10))
     df = df.join(df_type)
     return df
 

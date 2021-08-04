@@ -3,11 +3,12 @@ import numpy as np
 from quantiprot.metrics import aaindex
 from quantiprot.utils.io import load_fasta_file
 from sklearn.model_selection import train_test_split
-from Bio.PDB import PDBParser
-from Bio.PDB.DSSP import DSSP
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
 WINDOW_SIZE = 9
+
+# https://www.sciencedirect.com/science/article/abs/pii/0022283676901911
+RSA_DICT = {'A': 115, 'D': 150, 'C': 135, 'E': 190, 'F': 210, 'G': 75, 'H': 195, 'I': 175, 'K': 200, 'L': 170, 'M': 185, 'N': 160, 'P': 145, 'Q': 180, 'R': 225, 'S': 115, 'T': 140, 'V': 155, 'W': 255, 'Y': 230}
 
 
 def split_to_windows(protein):
@@ -19,21 +20,16 @@ def compute_feature_matrix(protein):
     volume_mapping = compute_mapping_according_to_dict(aaindex.get_aa2volume().mapping, protein)
     hydrophobicity_mapping = compute_mapping_according_to_dict(aaindex.get_aa2mj().mapping, protein)
     polarity_mapping = compute_mapping_according_to_dict(aaindex.get_aaindex_file('GRAR740102').mapping, protein)
-    # TODO: compute rsa
     # TODO: compute ss
     return pd.DataFrame(data={"volume": volume_mapping, "hydrophobicity": hydrophobicity_mapping, "polarity": polarity_mapping, "type": list(protein)})
 
 
 def compute_mapping_according_to_dict(mapping, protein):
-    vector = []
     mapping['B'] = (mapping['D'] + mapping['N']) / 2
     mapping['J'] = (mapping['I'] + mapping['L']) / 2
     mapping['X'] = sum(list(mapping.values())) / len(mapping)
     mapping['Z'] = (mapping['E'] + mapping['Q']) / 2
-    for amino_acid in protein:
-        vector.append(mapping[amino_acid])
-    return vector
-
+    return [mapping[amino_acid] for amino_acid in protein]
 
 
 def main():
@@ -46,16 +42,6 @@ def main():
         feature_matrix["type"] = feature_matrix["type"].astype('category').cat.codes # convert from categorical to numeric
         labels = [acid.isupper() for acid in protein]
         # TODO: train_main(feature_matrix, labels)
-
-
-def calculate_rsa():  # draft
-    # not working: dssp gets .pdb and we have .fasta, need to somehow convert fasta to pdb
-    p = PDBParser()
-    structure = p.get_structure("rsa", "iedb_linear_epitopes.pdb-seqres")
-    model = structure[0]
-    dssp = DSSP(model, "iedb_linear_epitopes.pdb-seqres", dssp='mkdssp')
-    a_key = list(dssp.keys())[2]
-    print(dssp[a_key])
 
 
 def calculate_ss(protein, window_size): # not the same window as the one given to the matrix

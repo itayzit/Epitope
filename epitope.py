@@ -1,3 +1,5 @@
+import timeit
+
 import pandas as pd
 import numpy as np
 from quantiprot.metrics import aaindex
@@ -81,22 +83,23 @@ def compute_feature_matrix(protein):
     )
     df = df.join(calculate_ss(protein, 10))
     df = df.join(df_type)
-    return df
+    assert len(df.columns) == 28
+    return df.astype(float)
 
 
 def df_type_of_amino_acid(protein):
     df = pd.DataFrame(np.zeros((len(protein), len(AMINO_ACIDS))), columns=AMINO_ACIDS)
     for i, amino_acid in enumerate(protein):
         if amino_acid == "B":
-            df[i] = [1 if (acid == "D" or acid == "N") else 0 for acid in AMINO_ACIDS]
+            df.loc[i] = [1 if (acid == "D" or acid == "N") else 0 for acid in AMINO_ACIDS]
         elif amino_acid == "J":
-            df[i] = [1 if (acid == "J" or acid == "L") else 0 for acid in AMINO_ACIDS]
+            df.loc[i] = [1 if (acid == "J" or acid == "L") else 0 for acid in AMINO_ACIDS]
         elif amino_acid == "X":
-            df[i] = [1 for _ in AMINO_ACIDS]
+            df.loc[i] = [1 for _ in AMINO_ACIDS]
         elif amino_acid == "Z":
-            df[i] = [1 if (acid == "E" or acid == "Q") else 0 for acid in AMINO_ACIDS]
+            df.loc[i] = [1 if (acid == "E" or acid == "Q") else 0 for acid in AMINO_ACIDS]
         else:
-            df[i] = [1 if amino_acid == acid else 0 for acid in AMINO_ACIDS]
+            df.loc[i] = [1 if amino_acid == acid else 0 for acid in AMINO_ACIDS]
     return df
 
 
@@ -117,9 +120,6 @@ def main():
     )
     for protein in train["protein"]:
         feature_matrix = compute_feature_matrix(protein.upper())
-        feature_matrix["type"] = (
-            feature_matrix["type"].astype("category").cat.codes
-        )  # convert from categorical to numeric
         labels = [acid.isupper() for acid in protein]
         # TODO: train_main(feature_matrix, labels)
 
@@ -127,7 +127,7 @@ def main():
 def calculate_ss(
     protein, window_size
 ):  # not the same window as the one given to the matrix
-    result = []
+    result = [0 for _ in range(len(protein))]
     for i in range(len(protein)):
         start = max(0, i - (window_size // 2))
         end = min(len(protein), i + window_size // 2)
@@ -136,12 +136,11 @@ def calculate_ss(
         probabs.append(1 - sum(probabs))
         if protein[i].lower() == "p":
             probabs[0] = 0.0
-        result.append(np.argmax(probabs))
+        result[i] = np.argmax(probabs)
+        # result.append(np.argmax(probabs))
 
     helix_result = [1 if result[i] == 0 else 0 for i in range(len(protein))]
     turn_result = [1 if result[i] == 1 else 0 for i in range(len(protein))]
-    sheet_result = [1 if result[i] == 2 else 0 for i in range(protein)]
-    other_structure_result = [1 if result[i] == 3 else 0 for i in range(protein)]
-    return pd.DataFrame(
-        np.vstack((helix_result, turn_result, sheet_result, other_structure_result))
-    )
+    sheet_result = [1 if result[i] == 2 else 0 for i in range(len(protein))]
+    other_structure_result = [1 if result[i] == 3 else 0 for i in range(len(protein))]
+    return pd.DataFrame(data={"helix": helix_result, "turn": turn_result, "sheet": sheet_result, "other": other_structure_result})

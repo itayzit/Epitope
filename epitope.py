@@ -56,11 +56,6 @@ RSA_DICT = {
 }
 
 
-def split_to_windows(protein):
-    # TODO
-    return None
-
-
 def compute_feature_matrix(protein):
     volume_mapping = compute_mapping_according_to_dict(
         aaindex.get_aa2volume().mapping, protein
@@ -91,13 +86,19 @@ def df_type_of_amino_acid(protein):
     df = pd.DataFrame(np.zeros((len(protein), len(AMINO_ACIDS))), columns=AMINO_ACIDS)
     for i, amino_acid in enumerate(protein):
         if amino_acid == "B":
-            df.loc[i] = [1 if (acid == "D" or acid == "N") else 0 for acid in AMINO_ACIDS]
+            df.loc[i] = [
+                1 if (acid == "D" or acid == "N") else 0 for acid in AMINO_ACIDS
+            ]
         elif amino_acid == "J":
-            df.loc[i] = [1 if (acid == "J" or acid == "L") else 0 for acid in AMINO_ACIDS]
+            df.loc[i] = [
+                1 if (acid == "J" or acid == "L") else 0 for acid in AMINO_ACIDS
+            ]
         elif amino_acid == "X":
             df.loc[i] = [1 for _ in AMINO_ACIDS]
         elif amino_acid == "Z":
-            df.loc[i] = [1 if (acid == "E" or acid == "Q") else 0 for acid in AMINO_ACIDS]
+            df.loc[i] = [
+                1 if (acid == "E" or acid == "Q") else 0 for acid in AMINO_ACIDS
+            ]
         else:
             df.loc[i] = [1 if amino_acid == acid else 0 for acid in AMINO_ACIDS]
     return df
@@ -111,17 +112,23 @@ def compute_mapping_according_to_dict(mapping, protein):
     return [mapping[amino_acid] for amino_acid in protein]
 
 
-def main():
+def trainset(train):
+    for protein in train["protein"]:
+        yield compute_feature_matrix(protein.upper()), [
+            acid.isupper() for acid in protein
+        ]
+
+
+def get_train_and_test():
     fasta_sequences = load_fasta_file("iedb_linear_epitopes.fasta")
     names = [fasta_seq.identifier for fasta_seq in fasta_sequences]
     proteins = ["".join(fasta_seq.data) for fasta_seq in fasta_sequences]
-    train, test = train_test_split(
-        pd.DataFrame(data={"name": names, "protein": proteins})
-    )
-    for protein in train["protein"]:
-        feature_matrix = compute_feature_matrix(protein.upper())
-        labels = [acid.isupper() for acid in protein]
-        # TODO: train_main(feature_matrix, labels)
+    return train_test_split(pd.DataFrame(data={"name": names, "protein": proteins}))
+
+
+def main():
+    train, test = get_train_and_test()
+    # CNN.train(trainset(train))
 
 
 def calculate_ss(
@@ -137,10 +144,16 @@ def calculate_ss(
         if protein[i].lower() == "p":
             probabs[0] = 0.0
         result[i] = np.argmax(probabs)
-        # result.append(np.argmax(probabs))
 
     helix_result = [1 if result[i] == 0 else 0 for i in range(len(protein))]
     turn_result = [1 if result[i] == 1 else 0 for i in range(len(protein))]
     sheet_result = [1 if result[i] == 2 else 0 for i in range(len(protein))]
     other_structure_result = [1 if result[i] == 3 else 0 for i in range(len(protein))]
-    return pd.DataFrame(data={"helix": helix_result, "turn": turn_result, "sheet": sheet_result, "other": other_structure_result})
+    return pd.DataFrame(
+        data={
+            "helix": helix_result,
+            "turn": turn_result,
+            "sheet": sheet_result,
+            "other": other_structure_result,
+        }
+    )

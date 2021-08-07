@@ -7,6 +7,10 @@ from quantiprot.utils.io import load_fasta_file
 from sklearn.model_selection import train_test_split
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
+PROTEIN_FILE = load_fasta_file("proteins_short.fasta")
+# FILENAME = "iedb_linear_epitopes.fasta"
+
+NUM_FEATURES = 28
 WINDOW_SIZE = 9
 
 AMINO_ACIDS = [
@@ -57,29 +61,42 @@ RSA_DICT = {
 
 
 def compute_feature_matrix(protein):
-    volume_mapping = compute_mapping_according_to_dict(
-        aaindex.get_aa2volume().mapping, protein
+    df_result = pd.DataFrame(
+        np.zeros((max_protein_len(), NUM_FEATURES)),
+        columns=[
+            "volume",
+            "hydrophobicity",
+            "polarity",
+            "RSA",
+            "helix",
+            "turn",
+            "sheet",
+            "other",
+        ]
+        + AMINO_ACIDS,
     )
-    hydrophobicity_mapping = compute_mapping_according_to_dict(
-        aaindex.get_aa2mj().mapping, protein
-    )
-    polarity_mapping = compute_mapping_according_to_dict(
-        aaindex.get_aaindex_file("GRAR740102").mapping, protein
-    )
-    rsa_mapping = compute_mapping_according_to_dict(RSA_DICT, protein)
     df_type = df_type_of_amino_acid(protein)
     df = pd.DataFrame(
         data={
-            "volume": volume_mapping,
-            "hydrophobicity": hydrophobicity_mapping,
-            "polarity": polarity_mapping,
-            "RSA": rsa_mapping,
+            "volume": compute_mapping_according_to_dict(
+                aaindex.get_aa2volume().mapping, protein
+            ),
+            "hydrophobicity": (
+                compute_mapping_according_to_dict(aaindex.get_aa2mj().mapping, protein)
+            ),
+            "polarity": (
+                compute_mapping_according_to_dict(
+                    aaindex.get_aaindex_file("GRAR740102").mapping, protein
+                )
+            ),
+            "RSA": (compute_mapping_according_to_dict(RSA_DICT, protein)),
         }
     )
     df = df.join(calculate_ss(protein, 10))
     df = df.join(df_type)
-    assert len(df.columns) == 28
-    return df.astype(float)
+    assert len(df.columns) == NUM_FEATURES
+    df_result.loc[0 : len(protein)] = df
+    return df_result.astype(float)
 
 
 def df_type_of_amino_acid(protein):
@@ -113,14 +130,27 @@ def compute_mapping_according_to_dict(mapping, protein):
 
 
 def trainset(train):
+    train_set = []
     for protein in train["protein"]:
-        yield compute_feature_matrix(protein.upper()), [
-            acid.isupper() for acid in protein
-        ]
+        train_set.append(
+            (
+                compute_feature_matrix(protein.upper()).to_numpy(),
+                [acid.isupper() for acid in protein]
+                + [0 for _ in range(MAX_PROTEIN_LEN - len(protein))],
+            )
+        )
+    return train_set
+
+
+def max_protein_len():
+    return max([len(protein.data) for protein in PROTEIN_FILE])
+
+
+MAX_PROTEIN_LEN = max_protein_len()
 
 
 def get_train_and_test():
-    fasta_sequences = load_fasta_file("iedb_linear_epitopes.fasta")
+    fasta_sequences = PROTEIN_FILE
     names = [fasta_seq.identifier for fasta_seq in fasta_sequences]
     proteins = ["".join(fasta_seq.data) for fasta_seq in fasta_sequences]
     return train_test_split(pd.DataFrame(data={"name": names, "protein": proteins}))

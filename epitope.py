@@ -10,7 +10,7 @@ from Bio.SeqUtils.ProtParam import ProteinAnalysis
 PROTEIN_FILE = load_fasta_file("proteins_short.fasta")
 # FILENAME = "iedb_linear_epitopes.fasta"
 
-NUM_FEATURES = 28
+NUM_FEATURES = 6
 WINDOW_SIZE = 9
 
 AMINO_ACIDS = [
@@ -63,17 +63,7 @@ RSA_DICT = {
 def compute_feature_matrix(protein):
     df_result = pd.DataFrame(
         np.zeros((max_protein_len(), NUM_FEATURES)),
-        columns=[
-            "volume",
-            "hydrophobicity",
-            "polarity",
-            "RSA",
-            "helix",
-            "turn",
-            "sheet",
-            "other",
-        ]
-        + AMINO_ACIDS,
+        columns=["volume", "hydrophobicity", "polarity", "RSA", "ss", "type"],
     )
     df_type = df_type_of_amino_acid(protein)
     df = pd.DataFrame(
@@ -100,25 +90,16 @@ def compute_feature_matrix(protein):
 
 
 def df_type_of_amino_acid(protein):
-    df = pd.DataFrame(np.zeros((len(protein), len(AMINO_ACIDS))), columns=AMINO_ACIDS)
-    for i, amino_acid in enumerate(protein):
-        if amino_acid == "B":
-            df.loc[i] = [
-                1 if (acid == "D" or acid == "N") else 0 for acid in AMINO_ACIDS
-            ]
-        elif amino_acid == "J":
-            df.loc[i] = [
-                1 if (acid == "J" or acid == "L") else 0 for acid in AMINO_ACIDS
-            ]
-        elif amino_acid == "X":
-            df.loc[i] = [1 for _ in AMINO_ACIDS]
-        elif amino_acid == "Z":
-            df.loc[i] = [
-                1 if (acid == "E" or acid == "Q") else 0 for acid in AMINO_ACIDS
-            ]
-        else:
-            df.loc[i] = [1 if amino_acid == acid else 0 for acid in AMINO_ACIDS]
-    return df
+    d = {acid: float(i) for i, acid in enumerate(AMINO_ACIDS)}
+    d.update(
+        {
+            "B": len(AMINO_ACIDS),
+            "J": len(AMINO_ACIDS) + 1,
+            "X": len(AMINO_ACIDS) + 2,
+            "Z": len(AMINO_ACIDS) + 3,
+        }
+    )
+    return pd.Series([d[acid] for acid in protein]).rename("type")
 
 
 def compute_mapping_according_to_dict(mapping, protein):
@@ -174,16 +155,4 @@ def calculate_ss(
         if protein[i].lower() == "p":
             probabs[0] = 0.0
         result[i] = np.argmax(probabs)
-
-    helix_result = [1 if result[i] == 0 else 0 for i in range(len(protein))]
-    turn_result = [1 if result[i] == 1 else 0 for i in range(len(protein))]
-    sheet_result = [1 if result[i] == 2 else 0 for i in range(len(protein))]
-    other_structure_result = [1 if result[i] == 3 else 0 for i in range(len(protein))]
-    return pd.DataFrame(
-        data={
-            "helix": helix_result,
-            "turn": turn_result,
-            "sheet": sheet_result,
-            "other": other_structure_result,
-        }
-    )
+    return pd.Series(result).rename("ss")

@@ -35,11 +35,8 @@ class Net(nn.Module):
         self.conv1 = nn.Conv2d(
             1, 6, 5
         )  # 6 kernels of size 5x5, c_in=1 because we have one channel (not like RGB)
-        # TODO: calculate the output size (H_out) from the equation under "shape" in https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
         self.pool = nn.MaxPool2d(2, 2)  # divide by 2
-        self.conv2 = nn.Conv2d(
-            6, 16, 5
-        )  # use the result of H_out as the c_in of this layer
+        self.conv2 = nn.Conv2d(7, 7, 5)  # we assumed H_in=9 and not 6
         # TODO: calculate the output size (H_out) from the equation under "shape" in https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
         self.fc1 = nn.Linear(
             16 * 5 * 5, 120

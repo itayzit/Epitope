@@ -18,7 +18,9 @@ BATCH_SIZE = 16
 
 def get_train_data_loader(under_sampling: bool = True) -> data.DataLoader:
     x, Y = epitope.create_dataset(epitope.get_train_and_test()[0])
-    x_ten, Y_ten = torch.tensor(x, dtype=torch.float32), torch.tensor(Y, dtype=torch.float32)
+    x_ten, Y_ten = torch.tensor(x, dtype=torch.float32), torch.tensor(
+        Y, dtype=torch.float32
+    )
     assert x_ten.shape[1:] == (9, 6)
     if under_sampling:
         under_sampler = RandomUnderSampler(random_state=42)
@@ -30,9 +32,7 @@ def get_train_data_loader(under_sampling: bool = True) -> data.DataLoader:
         x_ten = torch.tensor(x_2d_balanced.reshape(-1, nx, ny), dtype=torch.float32)
         Y_ten = torch.tensor(Y_balanced, dtype=torch.float32)
 
-    dataset = TensorDataset(
-        x_ten, Y_ten
-    )
+    dataset = TensorDataset(x_ten, Y_ten)
     return data.DataLoader(
         dataset,
         batch_size=BATCH_SIZE,

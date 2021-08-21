@@ -1,3 +1,5 @@
+import pickle
+
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -9,6 +11,7 @@ from imblearn.under_sampling import RandomUnderSampler
 import epitope
 
 #%%
+TRAIN_DATA_SET = "train_data_set"
 
 transform = transforms.Compose(
     [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
@@ -16,7 +19,7 @@ transform = transforms.Compose(
 BATCH_SIZE = 16
 
 
-def get_train_data_loader(under_sampling: bool = True) -> data.DataLoader:
+def get_dataset(under_sampling: bool) -> TensorDataset:
     x, Y = epitope.create_dataset(epitope.get_train_and_test()[0])
     x_ten, Y_ten = torch.tensor(x, dtype=torch.float32), torch.tensor(
         Y, dtype=torch.float32
@@ -32,14 +35,29 @@ def get_train_data_loader(under_sampling: bool = True) -> data.DataLoader:
         x_ten = torch.tensor(x_2d_balanced.reshape(-1, nx, ny), dtype=torch.float32)
         Y_ten = torch.tensor(Y_balanced, dtype=torch.float32)
 
-    dataset = TensorDataset(x_ten, Y_ten)
-    return data.DataLoader(
-        dataset,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        num_workers=2,
-    )
+    return TensorDataset(x_ten, Y_ten)
 
+
+# We'll use this code to use the train_data_loader in memory
+train_data_loader = data.DataLoader(
+    get_dataset(True),
+    batch_size=BATCH_SIZE,
+    shuffle=True,
+    num_workers=2,
+)
+
+
+# We'll use this code to write to write the dataset to a file and upload it to google collab.
+def write_to_file(data_set, filename):
+    with open(filename, "wb") as outfile:
+        pickle.dump(data_set, outfile)
+    print(f"finished writing to {filename}")
+
+
+write_to_file(get_dataset(True), TRAIN_DATA_SET)
+
+with open(TRAIN_DATA_SET, "rb") as f:
+    train_dataset = pickle.load(f)
 
 # works great until this line!
 

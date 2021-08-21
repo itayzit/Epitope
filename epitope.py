@@ -1,5 +1,3 @@
-import timeit
-
 import pandas as pd
 import numpy as np
 from quantiprot.metrics import aaindex
@@ -62,7 +60,7 @@ RSA_DICT = {
 
 def compute_feature_matrix(protein):
     df_result = pd.DataFrame(
-        np.zeros((max_protein_len(), NUM_FEATURES)),
+        np.zeros((len(protein), NUM_FEATURES)),
         columns=["volume", "hydrophobicity", "polarity", "RSA", "ss", "type"],
     )
     df_type = df_type_of_amino_acid(protein)
@@ -110,24 +108,15 @@ def compute_mapping_according_to_dict(mapping, protein):
     return [mapping[amino_acid] for amino_acid in protein]
 
 
-def trainset(train):
-    train_set = []
-    for protein in train["protein"]:
-        train_set.append(
-            (
-                compute_feature_matrix(protein.upper()).to_numpy(),
-                [acid.isupper() for acid in protein]
-                + [0 for _ in range(MAX_PROTEIN_LEN - len(protein))],
-            )
-        )
-    return train_set
-
-
-def max_protein_len():
-    return max([len(protein.data) for protein in PROTEIN_FILE])
-
-
-MAX_PROTEIN_LEN = max_protein_len()
+def create_dataset(protein_df):
+    x = []
+    Y = []
+    for protein in protein_df["protein"]:
+        feature_matrix = compute_feature_matrix(protein.upper()).to_numpy()
+        for i in range(4, len(protein) - 5):
+            x.append(feature_matrix[i - 4 : i + 5])
+            Y.append(float(protein[i].isupper()))
+    return x, Y
 
 
 def get_train_and_test():
@@ -138,8 +127,7 @@ def get_train_and_test():
 
 
 def main():
-    train, test = get_train_and_test()
-    # CNN.train(trainset(train))
+    pass
 
 
 def calculate_ss(

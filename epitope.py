@@ -119,6 +119,9 @@ def create_dataset(protein_df):
     return x, Y
 
 
+# TODO: split to train-test-validation 80, 10, 10
+
+
 def get_train_and_test():
     fasta_sequences = PROTEIN_FILE
     names = [fasta_seq.identifier for fasta_seq in fasta_sequences]

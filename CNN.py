@@ -46,6 +46,13 @@ train_data_loader = data.DataLoader(
     num_workers=2,
 )
 
+test_data_loader = data.DataLoader(
+    get_dataset(False),
+    batch_size=BATCH_SIZE,
+    shuffle=True,
+    num_workers=2,
+)
+
 
 # We'll use this code to write to write the dataset to a file and upload it to google collab.
 def write_to_file(data_set, filename):
@@ -70,20 +77,21 @@ class Net(nn.Module):
     def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(
-            in_channels=1, out_channels=6, kernel_size=5
+            in_channels=1, out_channels=6, kernel_size=3, padding=1
         )  # 6 kernels of size 5x5, c_in=1 because we have one channel (not like RGB)
-        self.pool = nn.MaxPool2d(2, 2)  # divide by 2
-        self.conv2 = nn.Conv2d(in_channels=6, out_channels=4, kernel_size=5)
+        self.conv2 = nn.Conv2d(in_channels=6, out_channels=3, kernel_size=3)
         # TODO: calculate the output size (H_out) from the equation under "shape" in https://pytorch.org/docs/stable/generated/torch.nn.Conv2d.html
+        self.conv3 = nn.Conv2d(in_channels=3, out_channels=9, kernel_size=3)
         self.fc1 = nn.Linear(
-            in_features=16 * 5 * 5, out_features=120
+            in_features=90, out_features=256
         )  # use the result of the second H_out to determine 16 * 5 * ?
-        self.fc2 = nn.Linear(120, 84)
-        self.fc3 = nn.Linear(84, 2)
+        self.fc2 = nn.Linear(256, 128)
+        self.fc3 = nn.Linear(128, 2)
 
     def forward(self, x):
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        x = F.relu(self.conv1(x.unsqueeze(1)))  # out: (16, 6, 9, 6)
+        x = F.relu(self.conv2(x))  # out: (16, 3, 7, 4)
+        x = F.relu(self.conv3(x))  # out: (16, 9, 5, 2)
         x = torch.flatten(x, 1)  # flatten all dimensions except batch
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -96,31 +104,60 @@ net = Net()
 
 # Define loss function and optimizer:
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+# optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.Adam(net.parameters(), lr=0.001)
+
+predict = lambda y: torch.argmax(torch.softmax(y, dim=1))
+
+
+def get_val(val_loader):
+    net.eval()
+    val_loss = 0.0
+    true_positives = 0
+    all_samples = 0
+    with torch.no_grad():
+        for data, labels in val_loader:
+            all_samples += labels.shape[0]
+            y = net(data)
+            predictions = predict(y)
+            val_loss += criterion(y, labels.long()).item()
+            true_positives += torch.sum((predictions == labels))
+    return val_loss / all_samples, true_positives / all_samples
 
 
 #%%
 # Train the network
-# for epoch in range(2):  # loop over the dataset multiple times
-#
-#     running_loss = 0.0
-#     for i, data in enumerate(train_loader, 0):
-#         # get the inputs; data is a list of [inputs, labels]
-#         inputs, labels = data
-#
-#         # zero the parameter gradients
-#         optimizer.zero_grad()
-#
-#         # forward + backward + optimize
-#         outputs = net(inputs)
-#         loss = criterion(outputs, labels)
-#         loss.backward()
-#         optimizer.step()
-#
-#         # print statistics
-#         running_loss += loss.item()
-#         if i % 2000 == 1999:  # print every 2000 mini-batches
-#             print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
-#             running_loss = 0.0
-#
-# print("Finished Training")
+EPOCHS = 10
+net.train()
+for epoch in range(EPOCHS):  # loop over the dataset multiple times
+    running_loss = 0.0
+    epoch_loss = 0.0
+    for i, data in enumerate(train_data_loader, 0):
+        # get the inputs; data is a list of [inputs, labels]
+        inputs, labels = data
+
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        # forward + backward + optimize
+        outputs = net(inputs)
+        loss = criterion(outputs, labels.long())
+        loss.backward()
+        optimizer.step()
+
+        # print statistics
+        running_loss += loss.item()
+        epoch_loss += running_loss
+        if i % 2000 == 1999:  # print every 2000 mini-batches
+            print("[%d, %5d] loss: %.3f" % (epoch + 1, i + 1, running_loss / 2000))
+            running_loss = 0.0
+
+    val_loss, tp_rate = get_val(test_data_loader)
+    print("*" * 10, "END OF EPOCH {}", "*" * 10).format(epoch)
+    print(
+        "avg train loss: {:.4f}\tavg val loss: {:.4f}\ttp rate: {}".format(
+            epoch_loss / len(train_data_loader.dataset), val_loss, tp_rate
+        )
+    )
+
+print("Finished Training")

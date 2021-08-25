@@ -5,7 +5,7 @@ from quantiprot.utils.io import load_fasta_file
 from sklearn.model_selection import train_test_split
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
-PROTEIN_FILE = load_fasta_file("proteins_short.fasta")
+PROTEIN_FILE = load_fasta_file("iedb_linear_epitopes.fasta")
 # FILENAME = "iedb_linear_epitopes.fasta"
 
 NUM_FEATURES = 6

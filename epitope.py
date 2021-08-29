@@ -129,7 +129,8 @@ def get_train_test_validation():
     train, test = train_test_split(
         pd.DataFrame(data={"name": names, "protein": proteins}), train_size=0.8
     )
-    return train, *train_test_split(test, train_size=0.5)
+    test, validation = train_test_split(test, train_size=0.5)
+    return train, test, validation
 
 
 def main():

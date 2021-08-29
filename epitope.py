@@ -4,6 +4,7 @@ from quantiprot.metrics import aaindex
 from quantiprot.utils.io import load_fasta_file
 from sklearn.model_selection import train_test_split
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
+from Bio import SeqIO
 
 PROTEIN_FILE = load_fasta_file("proteins_short.fasta")
 # FILENAME = "iedb_linear_epitopes.fasta"
@@ -128,10 +129,9 @@ def create_dataset(protein_df):
     return x, Y
 
 
-def get_train_test_validation():
-    fasta_sequences = PROTEIN_FILE
-    names = [fasta_seq.identifier for fasta_seq in fasta_sequences]
-    proteins = ["".join(fasta_seq.data) for fasta_seq in fasta_sequences]
+def get_train_test_validation(protein_file=PROTEIN_FILE):
+    names = [fasta_seq.identifier for fasta_seq in protein_file]
+    proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
     train, test = train_test_split(
         pd.DataFrame(data={"name": names, "protein": proteins}), train_size=0.8
     )
@@ -157,3 +157,14 @@ def calculate_ss(
             probabs[0] = 0.0
         result[i] = np.argmax(probabs)
     return pd.Series(result).rename("ss")
+
+
+def create_dataset_from_fasta():
+    datasets = []
+    for file_name in [FILE_NAME_1, FILE_NAME_2]:
+        SeqIO.convert(f"{file_name}.pdb", "pdb", f"{file_name}.fasta", "fasta")
+        protein_file = load_fasta_file(file_name + ".fasta")
+        names = [fasta_seq.identifier for fasta_seq in protein_file]
+        proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
+        datasets.append(create_dataset(pd.DataFrame(data={"name": names, "protein": proteins})))
+    return datasets

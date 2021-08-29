@@ -10,7 +10,6 @@ from torch.utils.data import TensorDataset
 from imblearn.under_sampling import RandomUnderSampler
 import epitope
 
-#%%
 TRAIN_DATA_SET = "train_data_set"
 
 transform = transforms.Compose(
@@ -43,14 +42,12 @@ train_data_loader = data.DataLoader(
     get_dataset(True),
     batch_size=BATCH_SIZE,
     shuffle=True,
-    num_workers=2,
 )
 
 test_data_loader = data.DataLoader(
     get_dataset(False),
     batch_size=BATCH_SIZE,
     shuffle=True,
-    num_workers=2,
 )
 
 
@@ -69,7 +66,6 @@ with open(TRAIN_DATA_SET, "rb") as f:
 # works great until this line!
 
 classes = ("epitope", "not_epitope")
-#%%
 
 
 # Define the CNN
@@ -107,7 +103,7 @@ criterion = nn.CrossEntropyLoss()
 # optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
 optimizer = optim.Adam(net.parameters(), lr=0.001)
 
-predict = lambda y: torch.argmax(torch.softmax(y, dim=1))
+predict = lambda y: torch.argmax(torch.softmax(y, dim=1), dim=1)
 
 
 def get_val(val_loader):
@@ -116,25 +112,25 @@ def get_val(val_loader):
     true_positives = 0
     all_samples = 0
     with torch.no_grad():
-        for data, labels in val_loader:
+        for d, labels in val_loader:
             all_samples += labels.shape[0]
-            y = net(data)
+            y = net(d)
             predictions = predict(y)
             val_loss += criterion(y, labels.long()).item()
-            true_positives += torch.sum((predictions == labels))
+            true_positives += torch.sum(predictions == labels).item()
     return val_loss / all_samples, true_positives / all_samples
 
 
-#%%
+
 # Train the network
 EPOCHS = 10
 net.train()
 for epoch in range(EPOCHS):  # loop over the dataset multiple times
     running_loss = 0.0
     epoch_loss = 0.0
-    for i, data in enumerate(train_data_loader, 0):
-        # get the inputs; data is a list of [inputs, labels]
-        inputs, labels = data
+    i = 0
+    for inputs, labels in train_data_loader:
+        i += 1
 
         # zero the parameter gradients
         optimizer.zero_grad()
@@ -153,7 +149,7 @@ for epoch in range(EPOCHS):  # loop over the dataset multiple times
             running_loss = 0.0
 
     val_loss, tp_rate = get_val(test_data_loader)
-    print("*" * 10, "END OF EPOCH {}", "*" * 10).format(epoch)
+    print("*" * 10, "END OF EPOCH {}".format(epoch), "*" * 10)
     print(
         "avg train loss: {:.4f}\tavg val loss: {:.4f}\ttp rate: {}".format(
             epoch_loss / len(train_data_loader.dataset), val_loss, tp_rate

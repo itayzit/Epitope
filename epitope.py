@@ -5,7 +5,7 @@ from quantiprot.utils.io import load_fasta_file
 from sklearn.model_selection import train_test_split
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
-PROTEIN_FILE = load_fasta_file("iedb_linear_epitopes.fasta")
+PROTEIN_FILE = load_fasta_file("proteins_short.fasta")
 # FILENAME = "iedb_linear_epitopes.fasta"
 
 NUM_FEATURES = 6
@@ -58,7 +58,7 @@ RSA_DICT = {
 }
 
 
-def compute_feature_matrix(protein):
+def compute_feature_matrix(protein: str) -> pd.DataFrame:
     df_result = pd.DataFrame(
         np.zeros((len(protein), NUM_FEATURES)),
         columns=["volume", "hydrophobicity", "polarity", "RSA", "ss", "type"],
@@ -108,18 +108,24 @@ def compute_mapping_according_to_dict(mapping, protein):
     return [mapping[amino_acid] for amino_acid in protein]
 
 
+def normalize_matrix(matrix: np.ndarray) -> np.ndarray:
+    """Min-max normalize every column of the matrix"""
+    if np.min(matrix) == np.max(matrix):
+        return np.zeros(matrix.shape, dtype=float)
+    return (matrix - np.min(matrix)) / (np.max(matrix) - np.min(matrix))
+
+
 def create_dataset(protein_df):
     x = []
     Y = []
     for protein in protein_df["protein"]:
-        feature_matrix = compute_feature_matrix(protein.upper()).to_numpy()
+        feature_matrix = normalize_matrix(
+            compute_feature_matrix(protein.upper()).to_numpy()
+        )
         for i in range(4, len(protein) - 5):
             x.append(feature_matrix[i - 4 : i + 5])
             Y.append(float(protein[i].isupper()))
     return x, Y
-
-
-# TODO: split to train-test-validation 80, 10, 10
 
 
 def get_train_test_validation():

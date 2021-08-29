@@ -111,7 +111,7 @@ def compute_mapping_according_to_dict(mapping, protein):
 def create_dataset(protein_df):
     x = []
     Y = []
-    for protein in protein_df["protein"][:1000]:
+    for protein in protein_df["protein"]:
         feature_matrix = compute_feature_matrix(protein.upper()).to_numpy()
         for i in range(4, len(protein) - 5):
             x.append(feature_matrix[i - 4 : i + 5])

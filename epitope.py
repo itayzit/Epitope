@@ -1,10 +1,10 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
+from Bio import SeqIO
+from Bio.SeqUtils.ProtParam import ProteinAnalysis
 from quantiprot.metrics import aaindex
 from quantiprot.utils.io import load_fasta_file
 from sklearn.model_selection import train_test_split
-from Bio.SeqUtils.ProtParam import ProteinAnalysis
-from Bio import SeqIO
 
 PROTEIN_FILE = load_fasta_file("proteins_short.fasta")
 # FILENAME = "iedb_linear_epitopes.fasta"

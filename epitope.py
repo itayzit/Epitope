@@ -6,8 +6,6 @@ from quantiprot.metrics import aaindex
 from quantiprot.utils.io import load_fasta_file
 from sklearn.model_selection import train_test_split
 
-PROTEIN_FILE = load_fasta_file("iedb_linear_epitopes.fasta")
-# FILENAME = "iedb_linear_epitopes.fasta"
 
 NUM_FEATURES = 6
 WINDOW_SIZE = 9
@@ -129,7 +127,8 @@ def create_dataset(protein_df):
     return x, Y
 
 
-def get_train_test_validation(protein_file=PROTEIN_FILE):
+def get_train_test_validation(protein_filename):
+    protein_file = load_fasta_file(protein_filename)
     names = [fasta_seq.identifier for fasta_seq in protein_file]
     proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
     train, test = train_test_split(

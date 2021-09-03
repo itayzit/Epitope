@@ -139,10 +139,6 @@ def get_train_test_validation(protein_file=PROTEIN_FILE):
     return train, test, validation
 
 
-def main():
-    pass
-
-
 def calculate_ss(
     protein, window_size
 ):  # not the same window as the one given to the matrix
@@ -161,10 +157,12 @@ def calculate_ss(
 
 def create_dataset_from_fasta():
     datasets = []
-    for file_name in [FILE_NAME_1, FILE_NAME_2]:
+    for file_name in []:
         SeqIO.convert(f"{file_name}.pdb", "pdb", f"{file_name}.fasta", "fasta")
         protein_file = load_fasta_file(file_name + ".fasta")
         names = [fasta_seq.identifier for fasta_seq in protein_file]
         proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
-        datasets.append(create_dataset(pd.DataFrame(data={"name": names, "protein": proteins})))
+        datasets.append(
+            create_dataset(pd.DataFrame(data={"name": names, "protein": proteins}))
+        )
     return datasets

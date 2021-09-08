@@ -120,10 +120,9 @@ def create_dataset(protein_df):
 
 def get_train_test_validation(protein_filename):
     protein_file = load_fasta_file(protein_filename)
-    names = [fasta_seq.identifier for fasta_seq in protein_file]
     proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
     train, test = train_test_split(
-        pd.DataFrame(data={"name": names, "protein": proteins}), train_size=0.8
+        pd.DataFrame(data={"protein": proteins}), train_size=0.8
     )
     test, validation = train_test_split(test, train_size=0.5)
     return train, test, validation

@@ -107,20 +107,11 @@ def compute_mapping_according_to_dict(mapping, protein):
     return [mapping[amino_acid] for amino_acid in protein]
 
 
-def normalize_matrix(matrix: np.ndarray) -> np.ndarray:
-    """Min-max normalize every column of the matrix"""
-    if np.min(matrix) == np.max(matrix):
-        return np.zeros(matrix.shape, dtype=float)
-    return (matrix - np.min(matrix)) / (np.max(matrix) - np.min(matrix))
-
-
 def create_dataset(protein_df):
     x = []
     Y = []
     for protein in protein_df["protein"]:
-        feature_matrix = normalize_matrix(
-            compute_feature_matrix(protein.upper()).to_numpy()
-        )
+        feature_matrix = compute_feature_matrix(protein.upper()).to_numpy()
         for i in range(4, len(protein) - 5):
             x.append(feature_matrix[i - 4 : i + 5])
             Y.append(float(protein[i].isupper()))

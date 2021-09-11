@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from Bio import SeqIO
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 from quantiprot.metrics import aaindex
 from quantiprot.utils.io import load_fasta_file
@@ -58,6 +57,11 @@ RSA_DICT = {
 
 
 def compute_feature_matrix(protein: str) -> pd.DataFrame:
+    """
+    Given a string of amino acids, compute all features for each one.
+    :param protein:
+    :return: a len(protein) x 6 matrix
+    """
     df_result = pd.DataFrame(
         np.zeros((len(protein), NUM_FEATURES)),
         columns=["volume", "hydrophobicity", "polarity", "RSA", "ss", "type"],
@@ -86,7 +90,11 @@ def compute_feature_matrix(protein: str) -> pd.DataFrame:
     return df_result.astype(float)
 
 
-def df_type_of_amino_acid(protein):
+def df_type_of_amino_acid(protein: str) -> pd.Series:
+    """
+    Compute type of each amino acid. Consider B, J, X, Z as separate amino acids.
+    :param protein: string
+    """
     d = {acid: float(i) for i, acid in enumerate(AMINO_ACIDS)}
     d.update(
         {
@@ -99,7 +107,13 @@ def df_type_of_amino_acid(protein):
     return pd.Series([d[acid] for acid in protein]).rename("type")
 
 
-def compute_mapping_according_to_dict(mapping, protein):
+def compute_mapping_according_to_dict(mapping: dict, protein: str) -> list:
+    """
+    Given a mapping, return mapping[letter] for every letter in protein. B, J, X, Z values will be the average of the amino acids they represent.
+    :param mapping: a dictionary of a value for each amino acid
+    :param protein: string
+    :return: a list of mapping[letter] for every letter in protein.
+    """
     mapping["B"] = (mapping["D"] + mapping["N"]) / 2
     mapping["J"] = (mapping["I"] + mapping["L"]) / 2
     mapping["X"] = sum(list(mapping.values())) / len(mapping)
@@ -107,40 +121,43 @@ def compute_mapping_according_to_dict(mapping, protein):
     return [mapping[amino_acid] for amino_acid in protein]
 
 
-def normalize_matrix(matrix: np.ndarray) -> np.ndarray:
-    """Min-max normalize every column of the matrix"""
-    if np.min(matrix) == np.max(matrix):
-        return np.zeros(matrix.shape, dtype=float)
-    return (matrix - np.min(matrix)) / (np.max(matrix) - np.min(matrix))
-
-
-def create_dataset(protein_df):
+def create_dataset(protein_df: pd.DataFrame) -> tuple:
+    """
+    :param protein_df: Given a len(protein) x 6 feature matrix
+    :return: A tuple of two lists: a 9x6 matrix list and a label list.
+    """
     x = []
     Y = []
     for protein in protein_df["protein"]:
-        feature_matrix = normalize_matrix(
-            compute_feature_matrix(protein.upper()).to_numpy()
-        )
-        for i in range(4, len(protein) - 5):
+        feature_matrix = compute_feature_matrix(protein.upper()).to_numpy()
+        for i in range(4, len(protein) - 4):
             x.append(feature_matrix[i - 4 : i + 5])
             Y.append(float(protein[i].isupper()))
     return x, Y
 
 
-def get_train_test_validation(protein_filename):
+def get_train_test_validation(protein_filename: str) -> tuple:
+    """
+    The function divides the data into three datasets
+    :param protein_filename: Given the file name to open the fasta file
+    :return: Three datasets - Train, Test and Validation
+    """
     protein_file = load_fasta_file(protein_filename)
-    names = [fasta_seq.identifier for fasta_seq in protein_file]
     proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
     train, test = train_test_split(
-        pd.DataFrame(data={"name": names, "protein": proteins}), train_size=0.8
+        pd.DataFrame(data={"protein": proteins}), train_size=0.8
     )
     test, validation = train_test_split(test, train_size=0.5)
     return train, test, validation
 
 
-def calculate_ss(
-    protein, window_size
-):  # not the same window as the one given to the matrix
+def calculate_ss(protein: str, window_size: int) -> pd.Series:
+    """
+    The function calculates the secondary structure feature
+    :param protein: string
+    :param window_size: int, not the same window as the one given to the matrix
+    :return: pd.Series of secondary structure
+    """
     result = [0 for _ in range(len(protein))]
     for i in range(len(protein)):
         start = max(0, i - (window_size // 2))
@@ -152,16 +169,3 @@ def calculate_ss(
             probabs[0] = 0.0
         result[i] = np.argmax(probabs)
     return pd.Series(result).rename("ss")
-
-
-def create_dataset_from_fasta():
-    datasets = []
-    for file_name in []:
-        SeqIO.convert(f"{file_name}.pdb", "pdb", f"{file_name}.fasta", "fasta")
-        protein_file = load_fasta_file(file_name + ".fasta")
-        names = [fasta_seq.identifier for fasta_seq in protein_file]
-        proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
-        datasets.append(
-            create_dataset(pd.DataFrame(data={"name": names, "protein": proteins}))
-        )
-    return datasets

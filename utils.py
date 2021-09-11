@@ -1,10 +1,12 @@
 """All of these functions were used in the google colab notebook in order to calculate values we used later on.
 To test a function, copy and paste it to the google collab notebook."""
 import torch
+from quantiprot.utils.io import load_fasta_file
 from torch import nn
 from torch.utils import data
 from sklearn.metrics import roc_curve
 import numpy as np
+import main
 
 device = torch.device("cuda")
 
@@ -40,3 +42,29 @@ def get_acc(net, data_loader):
             predictions = torch.round(y)
             true_predictions += torch.sum(predictions == labels.to(device)).item()
     return true_predictions / (len(data_loader.dataset))
+
+
+class ProteinAccuracy:
+    def __init__(self, protein, acc):
+        self.protein = protein
+        self.acc = acc
+
+
+def calculate_acc(protein, protein_pred):
+    trues = 0
+    for i in range(4, len(protein - 4)):
+        if (protein[i].isupper() and protein_pred[i].isupper()) or (
+            protein[i].islower() and protein_pred[i].islower()
+        ):
+            trues += 1
+    return trues / (len(protein) - 8)
+
+
+def find_5_best_proteins(filename):
+    protein_file = load_fasta_file(filename)
+    proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
+    protein_accs = []
+    for protein in proteins:
+        protein_accs.append(ProteinAccuracy(protein, calculate_acc(protein, main.main(protein))))
+    protein_accs.sort(key=lambda p: p.acc, reverse=True)
+    return [p.protein for p in protein_accs[:5]]

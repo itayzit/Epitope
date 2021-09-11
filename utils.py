@@ -33,7 +33,7 @@ def find_optimal_threshold(net: nn.Module, test_data_loader: data.DataLoader) ->
     return thresholds[ix]
 
 
-def get_acc(net, data_loader):
+def get_data_loader_acc(net, data_loader):
     net.eval()
     true_predictions = 0
     with torch.no_grad():
@@ -50,7 +50,7 @@ class ProteinAccuracy:
         self.acc = acc
 
 
-def calculate_acc(protein, protein_pred):
+def protein_prediction_accuracy(protein, protein_pred):
     trues = 0
     for i in range(4, len(protein - 4)):
         if (protein[i].isupper() and protein_pred[i].isupper()) or (
@@ -65,6 +65,6 @@ def find_5_best_proteins(filename):
     proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
     protein_accs = []
     for protein in proteins:
-        protein_accs.append(ProteinAccuracy(protein, calculate_acc(protein, main.main(protein))))
+        protein_accs.append(ProteinAccuracy(protein, protein_prediction_accuracy(protein, main.main(protein))))
     protein_accs.sort(key=lambda p: p.acc, reverse=True)
     return [p.protein for p in protein_accs[:5]]

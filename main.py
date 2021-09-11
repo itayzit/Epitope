@@ -5,7 +5,7 @@ import torch
 from torch.utils import data
 from torch.utils.data import TensorDataset
 import epitope
-from network import Net
+import network
 
 OPTIMAL_THRESHOLD = 0.4346268  # Computed using utils.find_optimal_threshold
 
@@ -17,6 +17,13 @@ arg_parser.add_argument(
 )
 
 
+def _load_net():
+    net = network.Net()
+    net.load_state_dict(torch.load("network_state_dict.pickle", map_location=torch.device("cpu")))
+    net.eval()
+    return net
+
+
 def main(protein: Optional[str]):
     """
     Given a string that represents a protein, return string with uppercase letters where the the network predicts the amino acid to be part of the epitope.
@@ -26,8 +33,7 @@ def main(protein: Optional[str]):
     if not protein:
         protein = arg_parser.parse_args().protein
     protein = protein.lower()
-    net = torch.load("network.pickle", map_location=torch.device("cpu"))
-    net.eval()
+    net = _load_net()
     protein_pred = protein[:4]
     x, _ = epitope.create_dataset(pd.DataFrame(data={"protein": [protein]}))
     dataset = TensorDataset(torch.tensor(x, dtype=torch.float32))

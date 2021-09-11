@@ -19,7 +19,9 @@ arg_parser.add_argument(
 
 def _load_net():
     net = network.Net()
-    net.load_state_dict(torch.load("network_state_dict.pickle", map_location=torch.device("cpu")))
+    net.load_state_dict(
+        torch.load("network_state_dict.pickle", map_location=torch.device("cpu"))
+    )
     net.eval()
     return net
 

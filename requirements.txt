@@ -1,0 +1,10 @@
+numpy
+pandas
+biopython
+quantiprot
+sklearn
+argparse
+typing
+torch
+imblearn
+matplotlib

@@ -112,7 +112,7 @@ def create_dataset(protein_df):
     Y = []
     for protein in protein_df["protein"]:
         feature_matrix = compute_feature_matrix(protein.upper()).to_numpy()
-        for i in range(4, len(protein) - 5):
+        for i in range(4, len(protein) - 4):
             x.append(feature_matrix[i - 4 : i + 5])
             Y.append(float(protein[i].isupper()))
     return x, Y

@@ -1,21 +1,26 @@
-import pandas as pd
+import numpy as np
 import torch
-from Bio import SeqIO
-from quantiprot.utils.io import load_fasta_file
 from torch.utils import data
 from torch.utils.data import TensorDataset
 import epitope
+from sklearn.metrics import roc_curve
 
-BATCH_SIZE = 16
 OPTIMAL_THRESHOLD = 0.5
 
 
-def create_dataset_from_fasta(file_name):
-    protein_file = load_fasta_file(file_name + ".fasta")
-    proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
-    x, _ = epitope.create_dataset(proteins)
-    x_ten = torch.tensor(x, dtype=torch.float32)
-    return TensorDataset(x_ten)
+def find_optimal_threshold(net, test_data_loader):
+    all_probs = []
+    with torch.no_grad:
+        for d, _ in test_data_loader:
+            y = net(d).squeeze(1)
+            all_probs.append(y)
+    fpr, tpr, thresholds = roc_curve(
+        test_data_loader.dataset.tensors[1], torch.stack(y).flatten()
+    )
+    gmeans = np.sqrt(tpr * (1 - fpr))
+    ix = np.argmax(gmeans)
+    print("Best Threshold=%f, G-Mean=%.3f" % (thresholds[ix], gmeans[ix]))
+    return thresholds[ix]
 
 
 def round_to_threshold(ten: torch.Tensor):
@@ -28,32 +33,20 @@ def round_to_threshold(ten: torch.Tensor):
     return predictions
 
 
-def pred_to_string(predictions, protein_str):
-    pred_string = ""
-    for i in range(len(predictions)):
-        if predictions[i] == 0.0:
-            pred_string += protein_str[i].lower()
-        else:
-            pred_string += protein_str[i].upper()
-    return pred_string
-
-
-def main(file_name):
-    protein_file = load_fasta_file(file_name)
-    proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
-    protein_predictions = []
-    for protein in proteins:
-        protein_pred = ""
-        x, _ = epitope.create_dataset([protein])
-        x_ten = torch.tensor(x, dtype=torch.float32)
-        dataset = TensorDataset(x_ten)
-        data_loader = data.DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False)
-        net = torch.load("model")  # TODO
-        with torch.no_grad():
-            for i, d in enumerate(data_loader):
-                y = net(d[0]).squeeze(1)
-                predictions = round_to_threshold(y)
-                protein_pred += pred_to_string(
-                    predictions, protein[i + 4: i + 4 + y.shape[0]] # TODO: deal with the last one where the
-                )
-            protein_predictions.append(protein_pred)
+# TODO: test it!
+def main(protein: str):
+    net = torch.load("model")  # TODO
+    protein_pred = protein[:4]
+    x, _ = epitope.create_dataset([protein])
+    dataset = TensorDataset(torch.tensor(x, dtype=torch.float32))
+    data_loader = iter(data.DataLoader(dataset, batch_size=1, shuffle=False))
+    with torch.no_grad():
+        for i in range(len(data_loader)):
+            d = next(data_loader)
+            y = net(d[0]).squeeze(1)
+            prediction = round_to_threshold(y)[0]
+            if prediction == 0.0:
+                protein_pred += protein[i + 4].lower()
+            else:
+                protein += protein[i + 4].upper()
+    return protein_pred + protein[-4:]

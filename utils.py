@@ -52,7 +52,7 @@ class ProteinAccuracy:
 
 def protein_prediction_accuracy(protein, protein_pred):
     trues = 0
-    for i in range(4, len(protein - 4)):
+    for i in range(4, len(protein) - 4):
         if (protein[i].isupper() and protein_pred[i].isupper()) or (
             protein[i].islower() and protein_pred[i].islower()
         ):
@@ -64,7 +64,14 @@ def find_5_best_proteins(filename):
     protein_file = load_fasta_file(filename)
     proteins = ["".join(fasta_seq.data) for fasta_seq in protein_file]
     protein_accs = []
+    j = 0
     for protein in proteins:
-        protein_accs.append(ProteinAccuracy(protein, protein_prediction_accuracy(protein, main.main(protein))))
+        print(f"** now handling protein number {j} out of {len(proteins)}**")
+        protein_accs.append(
+            ProteinAccuracy(
+                protein, protein_prediction_accuracy(protein, main.main(protein))
+            )
+        )
+        j += 1
     protein_accs.sort(key=lambda p: p.acc, reverse=True)
-    return [p.protein for p in protein_accs[:5]]
+    return [p.protein for p in protein_accs]

@@ -1,16 +1,13 @@
 import argparse
 from typing import Optional
-
-import numpy as np
 import pandas as pd
 import torch
-from torch import nn
 from torch.utils import data
 from torch.utils.data import TensorDataset
 import epitope
-from sklearn.metrics import roc_curve
+from network import Net
 
-OPTIMAL_THRESHOLD = 0.5
+OPTIMAL_THRESHOLD = 0.4346268  # Computed using utils.find_optimal_threshold
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
@@ -20,29 +17,6 @@ arg_parser.add_argument(
 )
 
 
-def find_optimal_threshold(net: nn.Module, test_data_loader: data.DataLoader) -> float:
-    """
-    Find the optimal threshold according to the roc curve based on the test dataset.
-    :param net: The CNN model.
-    :param test_data_loader:
-    :return: Float of the optimal threshold.
-    """
-    all_probs = []
-    with torch.no_grad():
-        for d, _ in test_data_loader:
-            y = net(d.to(torch.cuda)).squeeze(1)
-            all_probs.append(y)
-    fpr, tpr, thresholds = roc_curve(
-        test_data_loader.dataset.tensors[1].cpu().numpy(),
-        torch.cat(all_probs).cpu().numpy(),
-    )
-    gmeans = np.sqrt(tpr * (1 - fpr))
-    ix = np.argmax(gmeans)
-    print("Best Threshold=%f, G-Mean=%.3f" % (thresholds[ix], gmeans[ix]))
-    return thresholds[ix]
-
-
-# TODO: test it!
 def main(protein: Optional[str]):
     """
     Given a string that represents a protein, return string with uppercase letters where the the network predicts the amino acid to be part of the epitope.
@@ -51,7 +25,9 @@ def main(protein: Optional[str]):
     """
     if not protein:
         protein = arg_parser.parse_args().protein
-    net = torch.load("model")  # TODO
+    protein = protein.lower()
+    net = torch.load("network.pickle", map_location=torch.device("cpu"))
+    net.eval()
     protein_pred = protein[:4]
     x, _ = epitope.create_dataset(pd.DataFrame(data={"protein": [protein]}))
     dataset = TensorDataset(torch.tensor(x, dtype=torch.float32))
@@ -67,14 +43,13 @@ def main(protein: Optional[str]):
             else:
                 protein += protein[i + 4].lower()
     protein_pred += protein[-4:]
-    with open(
-        "output.txt",
-    ) as out:
+    with open("output.txt", "w") as out:
         out.write(f"Prediction for protein={protein} is:\n{protein_pred}\n\n")
         for i in range(len(all_predictions)):
             out.write(
                 f"probability for acid={protein[i + 4]} is {all_predictions[i]}\n"
             )
+    print(f"prediction is {protein_pred}, go to output.txt for more info")
 
 
 if __name__ == "__main__":
